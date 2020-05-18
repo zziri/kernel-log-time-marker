@@ -12,20 +12,55 @@ function printFileText(file) {
     return texts;
 }
 
-function fileModify(file){
-    
+function getFileInfo(content, name) {
     return {
-        name: fileName,
-        content: fileContent
+        name: name,
+        content: content
     };
 }
 
-function fileModifyAndDownload(file){
-    file.text().then(function(value){
-        
-    })
-    var rawFile = fileModify(file);
-    fileDownload(rawFile);
+function makeList(content){
+    return content.split('\n');
+}
+
+function contentModify(fileInfo){
+    // fileInfo.content = "modified" + fileInfo.content;
+    var list = makeList(fileInfo.content);
+    for(var i=0; i<list.length; i++){
+        console.log(`${i} : ${list[i]}`);
+    }
+}
+
+function nameModify(fileInfo){
+    // fileInfo.name = "modified" + fileInfo.name;
+    
+}
+
+function fileModify(fileInfo) {
+    // To Do :
+    // fileInfo.name = "modified" + fileInfo.name;
+    // fileInfo.content = "modified" + fileInfo.content;
+
+    contentModify(fileInfo);
+    nameModify(fileInfo);
+
+    return fileInfo;
+}
+
+function fileModifyAndDownload(file) {
+    var fileName = file.name;
+    var fileContent = '';
+    file.text()
+        .then(function (content) {
+            return getFileInfo(content, file.name);
+        })
+        .then(function (fileInfo) {
+            return fileModify(fileInfo);
+        })
+        .then(function (fileInfo) {
+            console.log(fileInfo);
+            saveToFile_Chrome(fileInfo.name, fileInfo.content);
+        });
 }
 
 function dropHandler(event) {
@@ -40,7 +75,7 @@ function dropHandler(event) {
             // If dropped items aren't files, reject them
             if (event.dataTransfer.items[i].kind === 'file') {
                 var file = event.dataTransfer.items[i].getAsFile();
-                var temp = event.dataTransfer.items[i].getAsString(function(string){
+                var temp = event.dataTransfer.items[i].getAsString(function (string) {
                     console.log('temp :');
                     console.log(string);
                 });
@@ -55,11 +90,11 @@ function dropHandler(event) {
             fileList.push(event.dataTransfer.files[i]);
         }
     }
-    // 파일 다운로드(그대로)
-    for(var i=0; i<fileList.length; i++){
-        modifyAndDownload(fileList[i]);
+
+    // 파일 수정 후 다운로드까지
+    for (var i = 0; i < fileList.length; i++) {
+        fileModifyAndDownload(fileList[i]);
     }
-    // saveToFile_Chrome('파일 이름.txt', '파일 내용')
 }
 
 function dragOverHandler(event) {
@@ -87,3 +122,10 @@ function saveToFile_Chrome(fileName, content) {
     a.click();
 }
 
+function init() {
+    const dropZone = document.querySelector('#drop_zone');
+    dropZone.addEventListener("drop", dropHandler);
+    dropZone.addEventListener("dragover", dragOverHandler);
+}
+
+init();
