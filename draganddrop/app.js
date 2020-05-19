@@ -3,6 +3,8 @@
 //     return new Promise(resolve => setTimeout(resolve, t));
 // }
 
+const DATE_REG_EXP = /[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9]/;
+
 function printFileText(file) {
     var texts = [];
     file.text().then(function (text) {
@@ -19,28 +21,68 @@ function getFileInfo(content, name) {
     };
 }
 
-function makeList(content){
+function makeList(content) {
     return content.split('\n');
 }
 
-function contentModify(fileInfo){
-    // fileInfo.content = "modified" + fileInfo.content;
+function isStartKernelLog(log) {
+    // 커널 로그 시작 지점인지 판단해서 반환
+    log = log.trim();
+    return ("KERNEL LOG".in(log) && "(dmesg)".in(log)) || ("kernel log:".in(log));
+}
+
+function stamping(list) {
+    var points = [];
+    for (var i = 0; i < list.length; i++) {
+        var log = list[i].trim();
+        if (log === "") {
+            ret = i;
+            list = list.slice(0, i);
+            break;
+        }
+        // point들을 찾기
+        if (log.isHave(DATE_REG_EXP)) {
+            if ("!@Sync".in(log) || "UTC".in(log)) {
+                points.push(i);
+            }
+        }
+    }
+    // 각 기준점을 기준으로 stamping 시작
+    var base = getKernelTick(list[points[0]]);
+    
+}
+
+function contentModify(fileInfo) {
+    // 파일 내용을 문자열 리스트로 get
     var list = makeList(fileInfo.content);
-    for(var i=0; i<list.length; i++){
+    // 리스트 순회
+    for (var i = 0; i < list.length; i++) {
+        // 시작 지점인가..?
         console.log(`${i} : ${list[i]}`);
+        if (isStartKernelLog(list[i])) {
+            i += 1;
+            console.log("start stamping at " + i);
+            // 해당 지역을 수정해서 반환합니다
+            modifiedList = stamping(list.slice(i, list.length));
+            // 원래 리스트에도 반영합니다
+            for (var j = 0; j < modifiedList; j++) {
+                list[i + j + 1] = modifiedList[j];
+            }
+            // i 값을 건너 뜁니다
+            i += (modifiedList.length -1);
+        }
     }
 }
 
-function nameModify(fileInfo){
-    // fileInfo.name = "modified" + fileInfo.name;
-    
+function nameModify(fileInfo) {
+    if ("(stamped)".in(fileInfo.name)) {
+        return;
+    }
+    fileInfo.name = fileInfo.name.replace(".txt", "(stamped).txt");
 }
 
 function fileModify(fileInfo) {
     // To Do :
-    // fileInfo.name = "modified" + fileInfo.name;
-    // fileInfo.content = "modified" + fileInfo.content;
-
     contentModify(fileInfo);
     nameModify(fileInfo);
 
@@ -122,7 +164,28 @@ function saveToFile_Chrome(fileName, content) {
     a.click();
 }
 
+function addMethod() {
+    if (typeof (String.prototype.trim) === "undefined") {
+        String.prototype.trim = function () {
+            return String(this).replace(/^\s+|\s+$/g, '');
+        };
+    }
+
+    if (typeof (String.prototype.isHave) === "undefined") {
+        String.prototype.isHave = function (substr) {
+            return String(this).search(substr) !== -1;
+        };
+    }
+
+    if (typeof (String.prototype.in) === "undefined") {
+        String.prototype.in = function (str) {
+            return str.search(String(this)) !== -1;
+        };
+    }
+}
+
 function init() {
+    addMethod();
     const dropZone = document.querySelector('#drop_zone');
     dropZone.addEventListener("drop", dropHandler);
     dropZone.addEventListener("dragover", dragOverHandler);
