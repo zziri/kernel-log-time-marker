@@ -4,9 +4,11 @@
 // }
 
 const DATE_REG_EXP = /[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9]/;
+const KERNEL_TIME_REG_EXP = /\[\s*[0-9]*\.[0-9]*\]/g;
+const TIME_REG_EXP = /\s*[0-9]*\.[0-9]*/g;
 
 function printFileText(file) {
-    var texts = [];
+    let texts = [];
     file.text().then(function (text) {
         console.log(text);
         texts.push(text);
@@ -31,32 +33,46 @@ function isStartKernelLog(log) {
     return ("KERNEL LOG".in(log) && "(dmesg)".in(log)) || ("kernel log:".in(log));
 }
 
+// 로그를 가지고 커널 타임(xxxx.xxxx) 반환
+function getKernelTick(log) {
+    const kernelTickFormat = log.match(KERNEL_TIME_REG_EXP);
+    if (kernelTickFormat === null) {
+        return null;
+    } else {
+        // 커널 Tick 포맷 안의 시간을 나타내는 string만 골라서 반환
+        return kernelTickFormat.match(TIME_REG_EXP).trim();
+    }
+}
+
+// 커널 로그 영역에 
 function stamping(list) {
-    var points = [];
-    for (var i = 0; i < list.length; i++) {
-        var log = list[i].trim();
+    let startPoint = null;
+    for (let i = 0; i < list.length; i++) {
+        let log = list[i].trim();
         if (log === "") {
             ret = i;
             list = list.slice(0, i);
             break;
         }
-        // point들을 찾기
-        if (log.isHave(DATE_REG_EXP)) {
+        // 시작 지점 찾기
+        if (startPoint === null && log.isHave(DATE_REG_EXP)) {
             if ("!@Sync".in(log) || "UTC".in(log)) {
-                points.push(i);
+                startPoint = i;
+                console.log(`@stamping: startPoint = ${startPoint}`);
+                // 탈출하면 안됨, 끝지점 찾아야함
             }
         }
     }
     // 각 기준점을 기준으로 stamping 시작
-    var base = getKernelTick(list[points[0]]);
+    let base = getKernelTick(list[startPoint]);
     
 }
 
 function contentModify(fileInfo) {
     // 파일 내용을 문자열 리스트로 get
-    var list = makeList(fileInfo.content);
+    let list = makeList(fileInfo.content);
     // 리스트 순회
-    for (var i = 0; i < list.length; i++) {
+    for (let i = 0; i < list.length; i++) {
         // 시작 지점인가..?
         console.log(`${i} : ${list[i]}`);
         if (isStartKernelLog(list[i])) {
@@ -65,11 +81,11 @@ function contentModify(fileInfo) {
             // 해당 지역을 수정해서 반환합니다
             modifiedList = stamping(list.slice(i, list.length));
             // 원래 리스트에도 반영합니다
-            for (var j = 0; j < modifiedList; j++) {
+            for (let j = 0; j < modifiedList; j++) {
                 list[i + j + 1] = modifiedList[j];
             }
             // i 값을 건너 뜁니다
-            i += (modifiedList.length -1);
+            i += (modifiedList.length - 1);
         }
     }
 }
@@ -90,8 +106,8 @@ function fileModify(fileInfo) {
 }
 
 function fileModifyAndDownload(file) {
-    var fileName = file.name;
-    var fileContent = '';
+    let fileName = file.name;
+    let fileContent = '';
     file.text()
         .then(function (content) {
             return getFileInfo(content, file.name);
@@ -106,18 +122,18 @@ function fileModifyAndDownload(file) {
 }
 
 function dropHandler(event) {
-    var fileList = [];
+    let fileList = [];
     console.log('File(s) dropped');
 
     // Prevent default behavior (Prevent file from being opened)
     event.preventDefault();
     if (event.dataTransfer.items) {
         // Use DataTransferItemList interface to access the file(s)
-        for (var i = 0; i < event.dataTransfer.items.length; i++) {
+        for (let i = 0; i < event.dataTransfer.items.length; i++) {
             // If dropped items aren't files, reject them
             if (event.dataTransfer.items[i].kind === 'file') {
-                var file = event.dataTransfer.items[i].getAsFile();
-                var temp = event.dataTransfer.items[i].getAsString(function (string) {
+                let file = event.dataTransfer.items[i].getAsFile();
+                let temp = event.dataTransfer.items[i].getAsString(function (string) {
                     console.log('temp :');
                     console.log(string);
                 });
@@ -127,14 +143,14 @@ function dropHandler(event) {
         }
     } else {
         // Use DataTransfer interface to access the file(s)
-        for (var i = 0; i < event.dataTransfer.files.length; i++) {
+        for (let i = 0; i < event.dataTransfer.files.length; i++) {
             console.log('... file[' + i + '].name = ' + event.dataTransfer.files[i].name);
             fileList.push(event.dataTransfer.files[i]);
         }
     }
 
     // 파일 수정 후 다운로드까지
-    for (var i = 0; i < fileList.length; i++) {
+    for (let i = 0; i < fileList.length; i++) {
         fileModifyAndDownload(fileList[i]);
     }
 }
@@ -147,7 +163,7 @@ function dragOverHandler(event) {
 }
 
 function saveToFile_Chrome(fileName, content) {
-    var blob = new Blob([content], { type: 'text/plain' });
+    let blob = new Blob([content], { type: 'text/plain' });
 
     objURL = window.URL.createObjectURL(blob);
 
@@ -157,7 +173,7 @@ function saveToFile_Chrome(fileName, content) {
     // }
     // window.__Xr_objURL_forCreatingFile__ = objURL;
 
-    var a = document.createElement('a');
+    let a = document.createElement('a');
 
     a.download = fileName;
     a.href = objURL;
