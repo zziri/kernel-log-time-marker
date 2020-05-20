@@ -103,7 +103,7 @@ function stamping(logBody) {
         let currentTick = getKernelTick(log);
         let diff = baseTick - currentTick;
         let currentSyncTime = new Date(baseSyncTime.getTime() - diff * 1000);
-        logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;
+        logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;                    // KST 구현 필요
     }
     // 나머지 스탬핑
     for (let i = startPoint + 1; i < logBody.content.length; i++) {
@@ -112,12 +112,12 @@ function stamping(logBody) {
         if (log.isHave(SYNC_EXP) || log.isHave(UTC_EXP)) {
             baseTick = getKernelTick(log);
             baseSyncTime = getSyncTime(log);
-            logBody.content[i] = baseSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;
+            logBody.content[i] = baseSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;                   // KST 구현 필요
         } else {
             let currentTick = getKernelTick(log);
             let diff = currentTick - baseTick;
             let currentSyncTime = new Date(baseSyncTime.getTime() + diff * 1000);
-            logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;
+            logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;                // KST 구현 필요
         }
     }
 }
