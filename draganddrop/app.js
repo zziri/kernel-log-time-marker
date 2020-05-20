@@ -6,6 +6,8 @@
 const DATE_REG_EXP = /(20|19)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9](\.[0-9]*)?/;
 const KERNEL_TIME_REG_EXP = /\[\s*[0-9]*\.[0-9]*\]/g;
 const TIME_REG_EXP = /\s*[0-9]*\.[0-9]*/g;
+const UTC_EXP = /(20|19)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9](\.[0-9]*)?(\s+)(UTC)/;
+const SYNC_EXP = /\!\@Sync/;
 
 function printList(list) {
     console.log("--------------------------------------- printing list start ---------------------------------------");
@@ -49,39 +51,6 @@ function getSyncTime(log) {
     return new Date(Date.parse(timeStr));
 }
 
-// 커널 로그 영역에 
-function stamping(list) {
-    let startPoint = null;
-    // 끝 점과 시작점을 세팅합니다
-    for (let i = 0; i < list.length; i++) {
-        let log = list[i].trim();
-        if (log === "") {
-            ret = i;
-            list = list.slice(0, i);
-            break;
-        }
-        // 시작 지점 찾기
-        if (startPoint === null && log.isHave(DATE_REG_EXP)) {
-            if ("!@Sync".in(log) || "UTC".in(log)) {
-                startPoint = i;
-                // 탈출하면 안됨, 끝지점 찾아야함
-            }
-        }
-    }
-    // 시작점을 기준으로 stamping 시작, start point 못찾으면 없는것이므로 시간 찍기 불가
-    if (startPoint === null)
-        return [];
-    // 기준 tick과 기준 sync time을 세팅
-    let baseTick = getKernelTick(list[startPoint]);
-    let baseSyncTime = getSyncTime(list[startPoint]);
-    // 위로 올라가면서 찍기
-    for (let i = startPoint - 1; i >= 0; i--) {
-
-    }
-    // 기준점 아래 라인부터 내려가면서 찍기(UTC 혹은 Sync 나타나면 base 수정)
-    return list;
-}
-
 function getLogBody(contentList, startExp, endExp) {
     let i;
     let ret = {
@@ -89,6 +58,7 @@ function getLogBody(contentList, startExp, endExp) {
         end: 0,
         content: []
     };
+    // 시작점 찾기
     for (i = 0; i < contentList.length; i++) {
         let log = contentList[i].trim();
         if (startExp.test(log)) {
@@ -96,7 +66,8 @@ function getLogBody(contentList, startExp, endExp) {
             break;
         }
     }
-    for ( ;i < contentList.length; i++) {
+    // 끝 지점 찾고 content 세팅
+    for (; i < contentList.length; i++) {
         let log = contentList[i].trim();
         if (endExp.test(log)) {
             ret.end = i;
@@ -107,18 +78,76 @@ function getLogBody(contentList, startExp, endExp) {
     return ret;
 }
 
+function stamping(logBody) {
+    // start point 설정
+    let temp = 0;
+    temp = logBody.content.findIndex(function (element) {
+        return SYNC_EXP.test(element);
+    });
+    let startPoint = temp < 0 ? Infinity : temp;
+    temp = logBody.content.findIndex(function (element) {
+        return UTC_EXP.test(element);
+    });
+    temp = temp < 0 ? Infinity : temp;
+    startPoint = Math.min(startPoint, temp);
+    // 못찾음, 아무것도 안함
+    if (startPoint === Infinity)
+        return;
+
+    // 기준잡기
+    let baseTick = getKernelTick(logBody.content[startPoint]);
+    let baseSyncTime = getSyncTime(logBody.content[startPoint]);
+    // 초기부분 스탬핑
+    for (let i = 1; i < startPoint; i++) {
+        let log = logBody.content[i];
+        let currentTick = getKernelTick(log);
+        let diff = baseTick - currentTick;
+        let currentSyncTime = new Date(baseSyncTime.getTime() - diff * 1000);
+        logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;
+    }
+    // 나머지 스탬핑
+    for (let i = startPoint + 1; i < logBody.content.length; i++) {
+        if (i === 0) continue;
+        let log = logBody.content[i];
+        if (log.isHave(SYNC_EXP) || log.isHave(UTC_EXP)) {
+            baseTick = getKernelTick(log);
+            baseSyncTime = getSyncTime(log);
+            logBody.content[i] = baseSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;
+        } else {
+            let currentTick = getKernelTick(log);
+            let diff = currentTick - baseTick;
+            let currentSyncTime = new Date(baseSyncTime.getTime() + diff * 1000);
+            logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;
+        }
+    }
+}
+
+function apply(contentList, kernelLogBody) {
+    for (let i = kernelLogBody.start, j = 0; i <= kernelLogBody.end; i++, j++) {
+        contentList[i] = kernelLogBody.content[j];
+    }
+}
+
 function contentModify(fileInfo) {
     let contentList = fileInfo.content.toList();
     let startExp = /^(\-)*(\s)*(KERNEL LOG)(\s)*(.)*(dmesg)(.)*(\-)*$/;      // ------ KERNEL LOG (dmesg) ------
     let endExp = /^(\s)*$/;                                                  // 공백만 있거나 그마저 없음
     let kernelLogBody = getLogBody(contentList, startExp, endExp);
+    stamping(kernelLogBody);
+    apply(contentList, kernelLogBody);
+    fileInfo.content = "";
+    contentList.forEach(element => {
+        element += "\n";
+        fileInfo.content += element;
+    });
 }
 
 function nameModify(fileInfo) {
-    if ("(stamped)".in(fileInfo.name)) {
-        return;
-    }
-    fileInfo.name = fileInfo.name.replace(".txt", "(stamped).txt");
+    // if ("(stamped)".in(fileInfo.name)) {
+    //     return;
+    // }
+
+    // fileInfo.name = fileInfo.name.replace(/\.(\w)*/, "(stamped).txt");
 }
 
 function fileModify(fileInfo) {
@@ -141,7 +170,6 @@ function fileModifyAndDownload(file) {
             return fileModify(fileInfo);
         })
         .then(function (fileInfo) {
-            console.log(fileInfo);
             saveToFile_Chrome(fileInfo.name, fileInfo.content);
         });
 }
