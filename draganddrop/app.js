@@ -3,17 +3,16 @@
 //     return new Promise(resolve => setTimeout(resolve, t));
 // }
 
-const DATE_REG_EXP = /[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9]/;
+const DATE_REG_EXP = /(20|19)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9](\.[0-9]*)?/;
 const KERNEL_TIME_REG_EXP = /\[\s*[0-9]*\.[0-9]*\]/g;
 const TIME_REG_EXP = /\s*[0-9]*\.[0-9]*/g;
 
-function printFileText(file) {
-    let texts = [];
-    file.text().then(function (text) {
-        console.log(text);
-        texts.push(text);
-    });
-    return texts;
+function printList(list) {
+    console.log("--------------------------------------- printing list start ---------------------------------------");
+    for (let i = 0; i < list.length; i++) {
+        console.log(list[i]);
+    }
+    console.log("--------------------------------------- printing list end ---------------------------------------");
 }
 
 function getFileInfo(content, name) {
@@ -23,30 +22,37 @@ function getFileInfo(content, name) {
     };
 }
 
-function makeList(content) {
-    return content.split('\n');
-}
-
 function isStartKernelLog(log) {
     // 커널 로그 시작 지점인지 판단해서 반환
     log = log.trim();
     return ("KERNEL LOG".in(log) && "(dmesg)".in(log)) || ("kernel log:".in(log));
 }
 
-// 로그를 가지고 커널 타임(xxxx.xxxx) 반환
+// 로그를 가지고 커널 타임(xxxx.xxxx) 반환 (실수형 데이터로 반환)
 function getKernelTick(log) {
-    const kernelTickFormat = log.match(KERNEL_TIME_REG_EXP);
+    const kernelTickFormat = log.match(KERNEL_TIME_REG_EXP)[0];
     if (kernelTickFormat === null) {
         return null;
     } else {
         // 커널 Tick 포맷 안의 시간을 나타내는 string만 골라서 반환
-        return kernelTickFormat.match(TIME_REG_EXP).trim();
+        return Number(kernelTickFormat.match(TIME_REG_EXP)[0].trim());
     }
+}
+
+// 로그(string)를 가지고 시간 정보 반환
+function getSyncTime(log) {
+    // let timeStr = log.slice(log.search(DATE_REG_EXP), log.length).trim();
+    let timeStr = log.match(DATE_REG_EXP)[0].trim();
+    if ("UTC".in(log)) {
+        timeStr += " UTC";
+    }
+    return new Date(Date.parse(timeStr));
 }
 
 // 커널 로그 영역에 
 function stamping(list) {
     let startPoint = null;
+    // 끝 점과 시작점을 세팅합니다
     for (let i = 0; i < list.length; i++) {
         let log = list[i].trim();
         if (log === "") {
@@ -58,36 +64,54 @@ function stamping(list) {
         if (startPoint === null && log.isHave(DATE_REG_EXP)) {
             if ("!@Sync".in(log) || "UTC".in(log)) {
                 startPoint = i;
-                console.log(`@stamping: startPoint = ${startPoint}`);
                 // 탈출하면 안됨, 끝지점 찾아야함
             }
         }
     }
-    // 각 기준점을 기준으로 stamping 시작
-    let base = getKernelTick(list[startPoint]);
-    
+    // 시작점을 기준으로 stamping 시작, start point 못찾으면 없는것이므로 시간 찍기 불가
+    if (startPoint === null)
+        return [];
+    // 기준 tick과 기준 sync time을 세팅
+    let baseTick = getKernelTick(list[startPoint]);
+    let baseSyncTime = getSyncTime(list[startPoint]);
+    // 위로 올라가면서 찍기
+    for (let i = startPoint - 1; i >= 0; i--) {
+
+    }
+    // 기준점 아래 라인부터 내려가면서 찍기(UTC 혹은 Sync 나타나면 base 수정)
+    return list;
+}
+
+function getLogBody(contentList, startExp, endExp) {
+    let i;
+    let ret = {
+        start: 0,
+        end: 0,
+        content: []
+    };
+    for (i = 0; i < contentList.length; i++) {
+        let log = contentList[i].trim();
+        if (startExp.test(log)) {
+            ret.start = i;
+            break;
+        }
+    }
+    for ( ;i < contentList.length; i++) {
+        let log = contentList[i].trim();
+        if (endExp.test(log)) {
+            ret.end = i;
+            break;
+        }
+        ret.content.push(log);
+    }
+    return ret;
 }
 
 function contentModify(fileInfo) {
-    // 파일 내용을 문자열 리스트로 get
-    let list = makeList(fileInfo.content);
-    // 리스트 순회
-    for (let i = 0; i < list.length; i++) {
-        // 시작 지점인가..?
-        console.log(`${i} : ${list[i]}`);
-        if (isStartKernelLog(list[i])) {
-            i += 1;
-            console.log("start stamping at " + i);
-            // 해당 지역을 수정해서 반환합니다
-            modifiedList = stamping(list.slice(i, list.length));
-            // 원래 리스트에도 반영합니다
-            for (let j = 0; j < modifiedList; j++) {
-                list[i + j + 1] = modifiedList[j];
-            }
-            // i 값을 건너 뜁니다
-            i += (modifiedList.length - 1);
-        }
-    }
+    let contentList = fileInfo.content.toList();
+    let startExp = /^(\-)*(\s)*(KERNEL LOG)(\s)*(.)*(dmesg)(.)*(\-)*$/;      // ------ KERNEL LOG (dmesg) ------
+    let endExp = /^(\s)*$/;                                                  // 공백만 있거나 그마저 없음
+    let kernelLogBody = getLogBody(contentList, startExp, endExp);
 }
 
 function nameModify(fileInfo) {
@@ -105,6 +129,7 @@ function fileModify(fileInfo) {
     return fileInfo;
 }
 
+// 이 앱의 메인과 같은 함수, 파일 수정과 다운로드
 function fileModifyAndDownload(file) {
     let fileName = file.name;
     let fileContent = '';
@@ -121,9 +146,10 @@ function fileModifyAndDownload(file) {
         });
 }
 
+// 드래그 앤 드롭 했을 때 불리는 이벤트 핸들러
 function dropHandler(event) {
     let fileList = [];
-    console.log('File(s) dropped');
+    // console.log('File(s) dropped');
 
     // Prevent default behavior (Prevent file from being opened)
     event.preventDefault();
@@ -133,18 +159,14 @@ function dropHandler(event) {
             // If dropped items aren't files, reject them
             if (event.dataTransfer.items[i].kind === 'file') {
                 let file = event.dataTransfer.items[i].getAsFile();
-                let temp = event.dataTransfer.items[i].getAsString(function (string) {
-                    console.log('temp :');
-                    console.log(string);
-                });
-                console.log('... file[' + i + '].name = ' + file.name);
+                // console.log('... file[' + i + '].name = ' + file.name);
                 fileList.push(file);
             }
         }
     } else {
         // Use DataTransfer interface to access the file(s)
         for (let i = 0; i < event.dataTransfer.files.length; i++) {
-            console.log('... file[' + i + '].name = ' + event.dataTransfer.files[i].name);
+            // console.log('... file[' + i + '].name = ' + event.dataTransfer.files[i].name);
             fileList.push(event.dataTransfer.files[i]);
         }
     }
@@ -181,21 +203,28 @@ function saveToFile_Chrome(fileName, content) {
 }
 
 function addMethod() {
+    // string.trim()
     if (typeof (String.prototype.trim) === "undefined") {
         String.prototype.trim = function () {
             return String(this).replace(/^\s+|\s+$/g, '');
         };
     }
-
+    // string.isHave(substr)
     if (typeof (String.prototype.isHave) === "undefined") {
         String.prototype.isHave = function (substr) {
             return String(this).search(substr) !== -1;
         };
     }
-
+    // substr.in(string)
     if (typeof (String.prototype.in) === "undefined") {
         String.prototype.in = function (str) {
             return str.search(String(this)) !== -1;
+        };
+    }
+    // string.toList()
+    if (typeof (String.prototype.toList) === "undefined") {
+        String.prototype.toList = function () {
+            return String(this).split('\n');
         };
     }
 }
