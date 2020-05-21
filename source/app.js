@@ -70,7 +70,6 @@ function getLogBody(contentList, startExp, endExp) {
     for (; i < contentList.length; i++) {
         let log = contentList[i].trim();
         if (endExp.test(log)) {
-            ret.content.push(log);
             ret.end = i;
             break;
         }
@@ -104,7 +103,7 @@ function stamping(logBody) {
         let currentTick = getKernelTick(log);
         let diff = baseTick - currentTick;
         let currentSyncTime = new Date(baseSyncTime.getTime() - diff * 1000);
-        logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;                    // KST 구현 필요
+        logBody.content[i] = currentSyncTime.toKSTString() + " " + log;                    // KST 구현 필요
     }
     // 나머지 스탬핑
     for (let i = startPoint; i < logBody.content.length; i++) {
@@ -113,26 +112,19 @@ function stamping(logBody) {
         if (log.isHave(SYNC_EXP) || log.isHave(UTC_EXP)) {
             baseTick = getKernelTick(log);
             baseSyncTime = getSyncTime(log);
-            logBody.content[i] = baseSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;                   // KST 구현 필요
+            logBody.content[i] = baseSyncTime.toKSTString() + " " + log;                   // KST 구현 필요
         } else {
             let currentTick = getKernelTick(log);
             let diff = currentTick - baseTick;
             let currentSyncTime = new Date(baseSyncTime.getTime() + diff * 1000);
-            logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;                // KST 구현 필요
+            logBody.content[i] = currentSyncTime.toKSTString() + " " + log;                // KST 구현 필요
         }
     }
 }
 
 // 전체 로그 내용에 커널로그 부분 적용
 function apply(contentList, kernelLogBody) {
-    console.log(kernelLogBody.start);
-    console.log(kernelLogBody.end);
-    console.log(kernelLogBody.content);
-    for (let i = kernelLogBody.start, j = 0; i <= kernelLogBody.end; i++, j++) {
-        if(kernelLogBody.content[j] === undefined){
-            console.log("찾았다!!!");
-            console.log(kernelLogBody.content[j]);
-        }
+    for (let i = kernelLogBody.start, j = 0; j < kernelLogBody.content.length; i++, j++) {
         contentList[i] = kernelLogBody.content[j];
     }
 }
@@ -152,11 +144,17 @@ function contentModify(fileInfo) {
 }
 
 function nameModify(fileInfo) {
-    // if ("(stamped)".in(fileInfo.name)) {
-    //     return;
-    // }
-
-    // fileInfo.name = fileInfo.name.replace(/\.(\w)*/, "(stamped).txt");
+    // 파일 이름에서 확장자 부분 match
+    let items = fileInfo.name.match(/\.[a-z]*$/);
+    // 없으면 실패
+    if (items === null) {
+        console.log("@nameModify: get extension fail");
+        return;
+    }
+    // array to string
+    let str = items[0];
+    // 파일 이름 변경
+    fileInfo.name = fileInfo.name.replace(str, `(stamped)${str}`);
 }
 
 function fileModify(fileInfo) {
@@ -239,6 +237,12 @@ function saveToFile_Chrome(fileName, content) {
     a.click();
 }
 
+// 정수 n을 자리수 width만큼 채워서 문자열 반환
+function pad(n, width) {
+    n = n + '';
+    return n.length >= width ? n : new Array(width - n.length + 1).join('0') + n;
+}
+
 function addMethod() {
     // string.trim()
     if (typeof (String.prototype.trim) === "undefined") {
@@ -262,6 +266,26 @@ function addMethod() {
     if (typeof (String.prototype.toList) === "undefined") {
         String.prototype.toList = function () {
             return String(this).split('\n');
+        };
+    }
+    // date.toKSTString()
+    if (typeof (Date.prototype.toKSTString) === "undefined") {
+        Date.prototype.toKSTString = function () {
+            let month = Object(this).getMonth() + 1;
+            let date = Object(this).getDate();
+            let hour = Object(this).getHours();
+            let min = Object(this).getMinutes();
+            let sec = Object(this).getSeconds();
+            let msec = Object(this).getMilliseconds();
+
+            month = pad(month, 2);
+            date = pad(date, 2);
+            hour = pad(hour, 2);
+            min = pad(min, 2);
+            sec = pad(sec, 2);
+            msec = pad(msec, 3);
+
+            return `${month}-${date} ${hour}:${min}:${sec}:${msec}`;
         };
     }
 }
