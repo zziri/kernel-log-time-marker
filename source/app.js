@@ -70,6 +70,7 @@ function getLogBody(contentList, startExp, endExp) {
     for (; i < contentList.length; i++) {
         let log = contentList[i].trim();
         if (endExp.test(log)) {
+            ret.content.push(log);
             ret.end = i;
             break;
         }
@@ -124,7 +125,14 @@ function stamping(logBody) {
 
 // 전체 로그 내용에 커널로그 부분 적용
 function apply(contentList, kernelLogBody) {
+    console.log(kernelLogBody.start);
+    console.log(kernelLogBody.end);
+    console.log(kernelLogBody.content);
     for (let i = kernelLogBody.start, j = 0; i <= kernelLogBody.end; i++, j++) {
+        if(kernelLogBody.content[j] === undefined){
+            console.log("찾았다!!!");
+            console.log(kernelLogBody.content[j]);
+        }
         contentList[i] = kernelLogBody.content[j];
     }
 }
