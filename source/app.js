@@ -9,13 +9,13 @@ const TIME_REG_EXP = /\s*[0-9]*\.[0-9]*/g;
 const UTC_EXP = /(20|19)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9](\.[0-9]*)?(\s+)(UTC)/;
 const SYNC_EXP = /\!\@Sync/;
 
-function printList(list) {
-    console.log("--------------------------------------- printing list start ---------------------------------------");
-    for (let i = 0; i < list.length; i++) {
-        console.log(list[i]);
-    }
-    console.log("--------------------------------------- printing list end ---------------------------------------");
-}
+// function printList(list) {
+//     console.log("--------------------------------------- printing list start ---------------------------------------");
+//     for (let i = 0; i < list.length; i++) {
+//         console.log(list[i]);
+//     }
+//     console.log("--------------------------------------- printing list end ---------------------------------------");
+// }
 
 function getFileInfo(content, name) {
     return {
@@ -106,7 +106,7 @@ function stamping(logBody) {
         logBody.content[i] = currentSyncTime.toISOString().replace(/[A-Z]/g, ' ') + log;                    // KST 구현 필요
     }
     // 나머지 스탬핑
-    for (let i = startPoint + 1; i < logBody.content.length; i++) {
+    for (let i = startPoint; i < logBody.content.length; i++) {
         if (i === 0) continue;
         let log = logBody.content[i];
         if (log.isHave(SYNC_EXP) || log.isHave(UTC_EXP)) {
@@ -122,6 +122,7 @@ function stamping(logBody) {
     }
 }
 
+// 전체 로그 내용에 커널로그 부분 적용
 function apply(contentList, kernelLogBody) {
     for (let i = kernelLogBody.start, j = 0; i <= kernelLogBody.end; i++, j++) {
         contentList[i] = kernelLogBody.content[j];
@@ -129,9 +130,9 @@ function apply(contentList, kernelLogBody) {
 }
 
 function contentModify(fileInfo) {
-    let contentList = fileInfo.content.toList();
-    let startExp = /^(\-)*(\s)*(KERNEL LOG)(\s)*(.)*(dmesg)(.)*(\-)*$/;      // ------ KERNEL LOG (dmesg) ------
-    let endExp = /^(\s)*$/;                                                  // 공백만 있거나 그마저 없음
+    let contentList = fileInfo.content.toList();                                // 
+    let startExp = /^(\-)*(\s)*(KERNEL LOG)(\s)*(.)*(dmesg)(.)*(\-)*$/;         // ------ KERNEL LOG (dmesg) ------
+    let endExp = /^(\s)*$/;                                                     // 공백만 있거나 그마저 없음
     let kernelLogBody = getLogBody(contentList, startExp, endExp);
     stamping(kernelLogBody);
     apply(contentList, kernelLogBody);
