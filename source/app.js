@@ -9,14 +9,6 @@ const TIME_REG_EXP = /\s*[0-9]*\.[0-9]*/g;
 const UTC_EXP = /(20|19)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9](\.[0-9]*)?(\s+)(UTC)/;
 const SYNC_EXP = /\!\@Sync/;
 
-// function printList(list) {
-//     console.log("--------------------------------------- printing list start ---------------------------------------");
-//     for (let i = 0; i < list.length; i++) {
-//         console.log(list[i]);
-//     }
-//     console.log("--------------------------------------- printing list end ---------------------------------------");
-// }
-
 function getFileInfo(content, name) {
     return {
         name: name,
@@ -24,8 +16,8 @@ function getFileInfo(content, name) {
     };
 }
 
+// 커널 로그 시작 지점인지 판단해서 반환
 function isStartKernelLog(log) {
-    // 커널 로그 시작 지점인지 판단해서 반환
     log = log.trim();
     return ("KERNEL LOG".in(log) && "(dmesg)".in(log)) || ("kernel log:".in(log));
 }
@@ -103,7 +95,7 @@ function stamping(logBody) {
         let currentTick = getKernelTick(log);
         let diff = baseTick - currentTick;
         let currentSyncTime = new Date(baseSyncTime.getTime() - diff * 1000);
-        logBody.content[i] = currentSyncTime.toKSTString() + " " + log;                    // KST 구현 필요
+        logBody.content[i] = currentSyncTime.toKSTString() + " " + log;
     }
     // 나머지 스탬핑
     for (let i = startPoint; i < logBody.content.length; i++) {
@@ -112,12 +104,12 @@ function stamping(logBody) {
         if (log.isHave(SYNC_EXP) || log.isHave(UTC_EXP)) {
             baseTick = getKernelTick(log);
             baseSyncTime = getSyncTime(log);
-            logBody.content[i] = baseSyncTime.toKSTString() + " " + log;                   // KST 구현 필요
+            logBody.content[i] = baseSyncTime.toKSTString() + " " + log;
         } else {
             let currentTick = getKernelTick(log);
             let diff = currentTick - baseTick;
             let currentSyncTime = new Date(baseSyncTime.getTime() + diff * 1000);
-            logBody.content[i] = currentSyncTime.toKSTString() + " " + log;                // KST 구현 필요
+            logBody.content[i] = currentSyncTime.toKSTString() + " " + log;
         }
     }
 }
@@ -158,17 +150,13 @@ function nameModify(fileInfo) {
 }
 
 function fileModify(fileInfo) {
-    // To Do :
     contentModify(fileInfo);
     nameModify(fileInfo);
-
     return fileInfo;
 }
 
-// 이 앱의 메인과 같은 함수, 파일 수정과 다운로드
+// 이 앱의 메인, 파일 수정과 다운로드
 function fileModifyAndDownload(file) {
-    let fileName = file.name;
-    let fileContent = '';
     file.text()
         .then(function (content) {
             return getFileInfo(content, file.name);
@@ -224,11 +212,11 @@ function saveToFile_Chrome(fileName, content) {
 
     objURL = window.URL.createObjectURL(blob);
 
-    // // 이전에 생성된 메모리 해제
-    // if (window.__Xr_objURL_forCreatingFile__) {
-    //     window.URL.revokeObjectURL(window.__Xr_objURL_forCreatingFile__);
-    // }
-    // window.__Xr_objURL_forCreatingFile__ = objURL;
+    // 이전에 생성된 메모리 해제
+    if (window.__Xr_objURL_forCreatingFile__) {
+        window.URL.revokeObjectURL(window.__Xr_objURL_forCreatingFile__);
+    }
+    window.__Xr_objURL_forCreatingFile__ = objURL;
 
     let a = document.createElement('a');
 
