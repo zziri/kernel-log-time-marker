@@ -9,7 +9,7 @@ p {
     text-align: center;
 }
 
-#wrap .box{ 
+#wrap .box { 
     width:300px;
     height:300px;
     position:absolute;
@@ -19,7 +19,7 @@ p {
     margin-top:-150px;
 }
 
-#wrap .box p{
+#wrap .box p {
     text-align: center;
 }
 
