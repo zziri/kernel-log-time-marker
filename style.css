@@ -33,7 +33,7 @@ h1{
     min-height: 150px;
     padding: 54px 54px;
     border: 2px dashed #0087F7;
-    border-radius: 5px;
+    border-radius: 20px;
     background: white;
     cursor: pointer;
 }
