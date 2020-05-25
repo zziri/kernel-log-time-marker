@@ -1,25 +1,83 @@
-
-#drop_zone {
-    border: 5px solid blue;
-    width:  200px;
-    height: 100px;
-}
-
-p {
+h1{
+    margin-top:10%;
+    margin-left: auto;
+    margin-right: auto;
     text-align: center;
 }
 
-#wrap .box { 
-    width:300px;
-    height:300px;
-    position:absolute;
-    left:50%;
-    top:50%;
-    margin-left:-150px;
-    margin-top:-150px;
+#wrap{
+    color: #646C7F;
+    text-rendering: optimizeLegibility;
+    box-sizing: border-box;
+    margin: 5%;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 3rem;
 }
 
-#wrap .box p {
+
+.dropzone{
+    color: #646C7F;
+    text-rendering: optimizeLegibility;
+    margin: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+    box-sizing: border-box;
+    min-height: 150px;
+    padding: 54px 54px;
+    border: 2px dashed #0087F7;
+    border-radius: 5px;
+    background: white;
+    cursor: pointer;
+}
+
+.dz-message{
+    color: #646C7F;
+    text-rendering: optimizeLegibility;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+    box-sizing: border-box;
     text-align: center;
+    margin: 2em 0;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.dz-button{
+    box-sizing: border-box;
+    background: none;
+    color: inherit;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    outline: inherit;
+}
+
+.note{
+    color: #646C7F;
+    text-rendering: optimizeLegibility;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    vertical-align: baseline;
+    box-sizing: border-box;
+    cursor: pointer;
+    font-size: 0.8em;
+    font-weight: 200;
+    display: block;
+    margin-top: 1.4rem;
 }
 

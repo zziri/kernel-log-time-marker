@@ -6,3 +6,5 @@
 ## Site
 https://zziri.github.io/kernel-log-time-marker/
 
+## Reference
+Drop Zone UI : https://www.dropzonejs.com/
