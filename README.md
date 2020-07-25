@@ -1,10 +1,11 @@
 # kernel-log-time-marker
 
 ## Overview
-안드로이드 커널 로그에 날짜와 시간을 찍어주는 앱
+안드로이드 커널 로그에 날짜와 시간을 추가하는 싱글 페이지 앱을 개발하는 저장소입니다  
+
 
 ## Site
-https://zziri.github.io/kernel-log-time-marker/
+https://zziri.github.io/kernel-log-time-marker/  
 
 ## Reference
-Drop Zone UI : https://www.dropzonejs.com/
+Drop Zone UI : https://www.dropzonejs.com/  
